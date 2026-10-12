@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { MONAD_RECEIVE_ADDRESS } from "../modules/chain/monad";
+import { RECEIVE_ADDRESS } from "../modules/chain/base";
 
 export function ReceiveQr({ onClose }: { onClose: () => void }) {
   const [src, setSrc] = useState("");
 
   useEffect(() => {
     let cancel = false;
-    QRCode.toDataURL(MONAD_RECEIVE_ADDRESS, { margin: 1, width: 280, errorCorrectionLevel: "H" })
+    QRCode.toDataURL(RECEIVE_ADDRESS, { margin: 1, width: 280, errorCorrectionLevel: "H" })
       .then((url) => {
         if (!cancel) setSrc(url);
       })
@@ -20,19 +20,19 @@ export function ReceiveQr({ onClose }: { onClose: () => void }) {
   }, []);
 
   return (
-    <div className="receive-modal" role="dialog" aria-label="Monad address">
+    <div className="receive-modal" role="dialog" aria-label="Base address">
       <div className="receive-sheet">
         <header>
-          <strong>Agent Gate / Monad</strong>
+          <strong>Agent Gate / Base</strong>
           <button type="button" onClick={onClose} aria-label="Close">×</button>
         </header>
         <div className="receive-qr">
           {src && <img src={src} alt="" />}
-          <span className="monad-mark" aria-hidden="true" />
+          <span className="chain-mark" aria-hidden="true" />
         </div>
-        <h2>Monad Address</h2>
-        <p>Use this address to receive tokens and collectibles on Monad</p>
-        <p className="mono receive-full">{MONAD_RECEIVE_ADDRESS}</p>
+        <h2>Base Address</h2>
+        <p>Use this address to receive USDC and other tokens on Base</p>
+        <p className="mono receive-full">{RECEIVE_ADDRESS}</p>
       </div>
     </div>
   );
