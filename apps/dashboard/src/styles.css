@@ -874,7 +874,7 @@ tr.is-selected { background: var(--accent-wash); }
 
 .stripe-word { font-size: 1.7rem; letter-spacing: 0.04em; line-height: 1; font-weight: bold; }
 
-.monad-card {
+.chain-card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -887,26 +887,18 @@ tr.is-selected { background: var(--accent-wash); }
   background: linear-gradient(145deg, #1e1a22, #5a4a68 78%);
 }
 
-.monad-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.chain-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 
-.monad-word { font-size: 1.55rem; letter-spacing: 0.08em; line-height: 1; }
+.chain-word { font-size: 1.55rem; letter-spacing: 0.08em; line-height: 1; }
 
-.dynamic-mark {
-  color: var(--on-dark);
-  text-align: right;
-  font-size: 0.68rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1.3;
-}
 
-.monad-balance { font-size: 1.45rem; letter-spacing: 0.02em; }
+.chain-balance { font-size: 1.45rem; letter-spacing: 0.02em; }
 
-.monad-card a { color: var(--on-dark); }
+.chain-card a { color: var(--on-dark); }
 
-.monad-txs { list-style: none; margin: 0; padding: 0; }
+.chain-txs { list-style: none; margin: 0; padding: 0; }
 
-.monad-txs li {
+.chain-txs li {
   display: grid;
   grid-template-columns: 2rem 1fr auto auto;
   gap: 0.6rem;
@@ -915,11 +907,11 @@ tr.is-selected { background: var(--accent-wash); }
   font-size: 0.88rem;
 }
 
-.monad-txs a { color: var(--ink); }
-.monad-txs li.out strong,
-.monad-txs li.out span:first-child { color: var(--negative); }
-.monad-txs li.in strong,
-.monad-txs li.in span:first-child { color: var(--positive); }
+.chain-txs a { color: var(--ink); }
+.chain-txs li.out strong,
+.chain-txs li.out span:first-child { color: var(--negative); }
+.chain-txs li.in strong,
+.chain-txs li.in span:first-child { color: var(--positive); }
 
 .rain-chip {
   width: 34px;
@@ -982,7 +974,7 @@ tr.is-selected { background: var(--accent-wash); }
 
 .receive-qr img { display: block; width: 100%; height: auto; }
 
-.monad-mark {
+.chain-mark {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -994,7 +986,7 @@ tr.is-selected { background: var(--accent-wash); }
   box-shadow: 0 0 0 6px #fff;
 }
 
-.monad-mark::after {
+.chain-mark::after {
   content: "";
   position: absolute;
   left: 11px;
@@ -1002,8 +994,8 @@ tr.is-selected { background: var(--accent-wash); }
   width: 32px;
   height: 32px;
   border-radius: var(--radius);
-  background: #5a4a68;
-  transform: rotate(45deg);
+  background: #0052ff;
+  border-radius: 50%;
 }
 
 .receive-full {
