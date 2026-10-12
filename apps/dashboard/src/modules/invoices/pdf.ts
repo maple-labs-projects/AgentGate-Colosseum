@@ -76,9 +76,13 @@ function renderPages(invoice: CompanyInvoice): string[] {
   gap(4);
   text("From", 48, 9, "F2", 12);
   text(ISSUER.name, 48, 11, "F2", 14);
-  text(`ERC-8004 #${ISSUER.agentId} on Monad testnet`, 48, 10, "F1");
-  text("Verified:", 48, 9, "F1", 12);
-  for (const part of wrapPath(ISSUER.verifyUrl, 88)) text(part, 48, 8, "F1", 10);
+  if (ISSUER.agentId === null) {
+    text("ERC-8004 agent: not registered yet", 48, 10, "F1");
+  } else {
+    text(`ERC-8004 #${ISSUER.agentId} on ${ISSUER.chainName}`, 48, 10, "F1");
+    text("Verified:", 48, 9, "F1", 12);
+    for (const part of wrapPath(ISSUER.verifyUrl, 88)) text(part, 48, 8, "F1", 10);
+  }
   text(`Wallet: ${ISSUER.wallet}`, 48, 8, "F1", 11);
   text(`For ${ISSUER.site}`, 48, 10, "F1");
   gap(6);
