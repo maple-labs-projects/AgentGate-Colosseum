@@ -1,4 +1,4 @@
-/** Shown beside the Monad wallet. Not a live Stripe account. */
+/** Shown beside the Base wallet. Not a live Stripe account. */
 export const STRIPE_DEMO = {
   balanceUsd: 500,
   payoutUsd: 0,

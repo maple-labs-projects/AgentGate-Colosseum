@@ -38,7 +38,7 @@ value in CSS. Use `var(--token)`.
 | `--on-dark` / `--on-dark-soft` | `#f4efe6` / `#bdb4a3` | Text on `--deep` |
 
 Exceptions, kept literal on purpose: the QR code and its centre mark stay pure
-white so scanners read them, and the Stripe and Monad cards use their own muted
+white so scanners read them, and the Stripe and Base cards use their own muted
 tints because they depict third-party products.
 
 ## Typography
