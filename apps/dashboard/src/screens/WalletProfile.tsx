@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { explorerAddressUrl, quicknodeAgentUrl, scan8004AgentUrl } from "../modules/chain/monad";
+import { CHAIN_NAME, explorerAddressUrl, quicknodeAgentUrl, scan8004AgentUrl } from "../modules/chain/base";
 import { fetchScanFeedback, readAgentReputation, type AgentReputation, type ScanNote } from "../modules/erc8004/reputation";
 import { globalAgentId, shortAddress, shortGlobalAgentId } from "../modules/wallet/format";
 
@@ -85,7 +85,7 @@ export function WalletProfile({
         {tab === "id" && (
           <>
             <Row label="Agent ID" value={registered ? `#${agentId}` : "—"} href={registered ? scan8004AgentUrl(agentId) : undefined} />
-            <Row label="Chain" value="Monad Testnet" />
+            <Row label="Chain" value={CHAIN_NAME} />
             <Row label="Global ID" value={registered ? shortGlobalAgentId(agentId) : "Unregistered"} title={registered ? globalAgentId(agentId) : undefined} />
             <Row label="Owner" value={owner ? shortAddress(owner) : "—"} href={owner ? explorerAddressUrl(owner) : undefined} />
             <Row label="Agent wallet" value={address ? shortAddress(address) : "—"} href={walletHref} />
@@ -128,7 +128,7 @@ export function WalletProfile({
             <Row label="Verified" value={registered ? "yes · on-chain" : "no"} />
             <Row label="8004scan" value={registered ? "open profile" : "—"} href={registered ? scan8004AgentUrl(agentId) : undefined} />
             <Row label="QuickNode" value={registered ? "open profile" : "—"} href={registered ? quicknodeAgentUrl(agentId) : undefined} />
-            <Row label="Explorer" value={walletHref ? "monadvision" : "—"} href={walletHref} />
+            <Row label="Explorer" value={walletHref ? "basescan" : "—"} href={walletHref} />
           </>
         )}
       </div>
