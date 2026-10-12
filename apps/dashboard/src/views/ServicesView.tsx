@@ -227,7 +227,7 @@ function Agents({ summary, rules, view, onView }: { summary: Summary; rules: Rul
       {view === "compare" && (
         <>
           <p className="obs-lead">
-            Good agents hit HTTP 402 and stopped. Bad agents were gated but still fetched the page. Paid agents stopped at 402, paid USDC on Monad, and came back with a receipt.
+            Good agents hit HTTP 402 and stopped. Bad agents were gated but still fetched the page. Paid agents stopped at 402, paid USDC on Base, and came back with a receipt.
           </p>
           <div className="obs-kpis">
             <div className="obs-kpi"><span>Good (stopped at 402)</span><strong>{fmt(summary.goodVisitors)}</strong></div>
@@ -263,7 +263,7 @@ function Agents({ summary, rules, view, onView }: { summary: Summary; rules: Rul
       )}
       {view === "paid" && (
         <>
-          <p className="obs-lead">Paid agents stopped at HTTP 402, paid USDC on Monad, and returned with a receipt.</p>
+          <p className="obs-lead">Paid agents stopped at HTTP 402, paid USDC on Base, and returned with a receipt.</p>
           <CountTable rows={summary.paidAgents} a="Agent" b="Visitors" />
         </>
       )}
