@@ -9,8 +9,8 @@
 # Default functions directory is apps/dashboard/netlify/functions once base is set.
 
 [[redirects]]
-  from = "/api/monad-account"
-  to = "/.netlify/functions/monad-account"
+  from = "/api/base-account"
+  to = "/.netlify/functions/base-account"
   status = 200
   force = true
 

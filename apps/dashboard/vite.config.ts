@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { monadAccountApi } from "./vite.monadApi";
+import { baseAccountApi } from "./vite.baseApi";
 
 export default defineConfig({
-  plugins: [react(), monadAccountApi()],
+  plugins: [react(), baseAccountApi()],
   server: { port: 5173 },
 });
