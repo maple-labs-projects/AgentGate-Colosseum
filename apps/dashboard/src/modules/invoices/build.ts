@@ -1,4 +1,4 @@
-import { scan8004AgentUrl } from "../chain/monad";
+import { CHAIN_NAME, scan8004AgentUrl } from "../chain/base";
 import { KNOWN_INVOICE_AGENT } from "../erc8004/knownAgent";
 import type { AccessHit } from "../services/blogAnalytics";
 import type { Rule } from "../../types";
@@ -20,7 +20,8 @@ export const ISSUER = {
   name: KNOWN_INVOICE_AGENT.name,
   agentId: KNOWN_INVOICE_AGENT.agentId,
   wallet: KNOWN_INVOICE_AGENT.wallet,
-  verifyUrl: scan8004AgentUrl(KNOWN_INVOICE_AGENT.agentId),
+  verifyUrl: KNOWN_INVOICE_AGENT.agentId === null ? "" : scan8004AgentUrl(KNOWN_INVOICE_AGENT.agentId),
+  chainName: CHAIN_NAME,
   site: "dheeraj.blog",
   origin: "https://dheeraj-work.netlify.app",
 };
