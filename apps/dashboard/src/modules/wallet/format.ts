@@ -1,4 +1,4 @@
-import { MONAD_TESTNET_CAIP2, MONAD_TESTNET_IDENTITY_REGISTRY } from "../chain/monad";
+import { CHAIN_CAIP2, IDENTITY_REGISTRY } from "../chain/base";
 
 export function shortAddress(value: string): string {
   if (value.length < 12) return value;
@@ -6,9 +6,9 @@ export function shortAddress(value: string): string {
 }
 
 export function globalAgentId(agentId: number): string {
-  return `${MONAD_TESTNET_CAIP2}:${MONAD_TESTNET_IDENTITY_REGISTRY}:${agentId}`;
+  return `${CHAIN_CAIP2}:${IDENTITY_REGISTRY}:${agentId}`;
 }
 
 export function shortGlobalAgentId(agentId: number): string {
-  return `${MONAD_TESTNET_CAIP2}:0x8004…BD9e:${agentId}`;
+  return `${CHAIN_CAIP2}:0x8004…BD9e:${agentId}`;
 }
