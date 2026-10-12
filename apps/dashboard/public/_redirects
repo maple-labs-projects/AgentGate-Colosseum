@@ -1,2 +1,3 @@
 /api/base-account  /.netlify/functions/base-account  200
+/api/erc8004-feedback  /.netlify/functions/erc8004-feedback  200
 /*  /index.html  200
