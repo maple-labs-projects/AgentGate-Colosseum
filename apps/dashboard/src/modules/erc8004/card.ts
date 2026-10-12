@@ -1,5 +1,5 @@
 import type { Address } from "viem";
-import { AGENT_REGISTRY_CAIP10, MONAD_TESTNET_CAIP2 } from "../chain/monad";
+import { AGENT_REGISTRY_CAIP10, CHAIN_CAIP2 } from "../chain/base";
 
 export type AgentCard = {
   type: string;
@@ -23,7 +23,7 @@ export function buildAgentCard(input: {
     type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
     name: input.name,
     description: input.description,
-    services: [{ name: "x402-pay", endpoint: `${MONAD_TESTNET_CAIP2}:${input.walletAddress}` }],
+    services: [{ name: "x402-pay", endpoint: `${CHAIN_CAIP2}:${input.walletAddress}` }],
     registrations:
       input.agentId === undefined ? [] : [{ agentId: input.agentId, agentRegistry: AGENT_REGISTRY_CAIP10 }],
     supportedTrust: ["reputation"],
