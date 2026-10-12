@@ -1,4 +1,4 @@
-/** Minimal Identity Registry ABI. Same calls midnightx402 sends on Monad. */
+/** Minimal Identity Registry ABI. Same calls the ERC-8004 reference contracts accept on any EVM chain. */
 export const identityRegistryAbi = [
   {
     type: "function",

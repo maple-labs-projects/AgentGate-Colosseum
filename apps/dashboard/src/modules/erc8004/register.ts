@@ -7,21 +7,21 @@ import {
   type Hash,
   type Hex,
 } from "viem";
-import { MONAD_TESTNET_IDENTITY_REGISTRY, monadTestnet } from "../chain/monad";
+import { IDENTITY_REGISTRY, activeChain } from "../chain/base";
 import { identityRegistryAbi } from "./abi";
 import { agentUriFromCard, buildAgentCard } from "./card";
-import { connectMonadWallet } from "./wallet";
+import { connectChainWallet } from "./wallet";
 
 function publicClient() {
   return createPublicClient({
-    chain: monadTestnet,
-    transport: http(monadTestnet.rpcUrls.default.http[0]),
+    chain: activeChain,
+    transport: http(activeChain.rpcUrls.default.http[0]),
   });
 }
 
 function agentIdFromLogs(logs: { address: Address; data: Hex; topics: readonly Hex[] }[]): number {
   for (const log of logs) {
-    if (log.address.toLowerCase() !== MONAD_TESTNET_IDENTITY_REGISTRY.toLowerCase()) continue;
+    if (log.address.toLowerCase() !== IDENTITY_REGISTRY.toLowerCase()) continue;
     try {
       const decoded = decodeEventLog({
         abi: identityRegistryAbi,
@@ -41,27 +41,27 @@ function agentIdFromLogs(logs: { address: Address; data: Hex; topics: readonly H
 }
 
 async function send(
-  walletClient: Awaited<ReturnType<typeof connectMonadWallet>>["walletClient"],
+  walletClient: Awaited<ReturnType<typeof connectChainWallet>>["walletClient"],
   account: Address,
   data: Hex,
 ): Promise<Hash> {
   const client = publicClient();
-  const gas = await client.estimateGas({ account, to: MONAD_TESTNET_IDENTITY_REGISTRY, data });
+  const gas = await client.estimateGas({ account, to: IDENTITY_REGISTRY, data });
   return walletClient.sendTransaction({
     account,
-    chain: monadTestnet,
-    to: MONAD_TESTNET_IDENTITY_REGISTRY,
+    chain: activeChain,
+    to: IDENTITY_REGISTRY,
     data,
     gas: (gas * 120n) / 100n,
   });
 }
 
 /**
- * Browser port of midnightx402 `registerAgentOnMonad`.
+ * Browser port of midnightx402 `registerAgentOnChain`.
  * register(agentURI) → read Registered → setAgentURI with the id filled in.
  * The connected wallet signs. It needs testnet MON for gas.
  */
-export async function registerAgentOnMonad(input: {
+export async function registerAgentOnChain(input: {
   name: string;
   description: string;
   walletAddress?: Address;
@@ -73,7 +73,7 @@ export async function registerAgentOnMonad(input: {
   walletAddress: Address;
   owner: Address;
 }> {
-  const { address, walletClient } = await connectMonadWallet();
+  const { address, walletClient } = await connectChainWallet();
   if (input.walletAddress && input.walletAddress.toLowerCase() !== address.toLowerCase()) {
     throw new Error("Connected wallet does not match the agent wallet.");
   }
@@ -122,19 +122,19 @@ export async function readOnchainAgent(agentId: number): Promise<{
   const client = publicClient();
   const [owner, tokenURI, agentWallet] = await Promise.all([
     client.readContract({
-      address: MONAD_TESTNET_IDENTITY_REGISTRY,
+      address: IDENTITY_REGISTRY,
       abi: identityRegistryAbi,
       functionName: "ownerOf",
       args: [BigInt(agentId)],
     }),
     client.readContract({
-      address: MONAD_TESTNET_IDENTITY_REGISTRY,
+      address: IDENTITY_REGISTRY,
       abi: identityRegistryAbi,
       functionName: "tokenURI",
       args: [BigInt(agentId)],
     }),
     client.readContract({
-      address: MONAD_TESTNET_IDENTITY_REGISTRY,
+      address: IDENTITY_REGISTRY,
       abi: identityRegistryAbi,
       functionName: "getAgentWallet",
       args: [BigInt(agentId)],

@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { explorerAddressUrl, explorerTxUrl, MONAD_TESTNET_IDENTITY_REGISTRY, scan8004AgentUrl } from "../modules/chain/monad";
+import { explorerAddressUrl, explorerTxUrl, IDENTITY_REGISTRY, scan8004AgentUrl } from "../modules/chain/base";
 import { rememberChainAgent } from "../modules/erc8004/directory";
-import { readOnchainAgent, registerAgentOnMonad } from "../modules/erc8004/register";
-import { connectMonadWallet } from "../modules/erc8004/wallet";
+import { readOnchainAgent, registerAgentOnChain } from "../modules/erc8004/register";
+import { connectChainWallet } from "../modules/erc8004/wallet";
 import type { Identity } from "../types";
 
 export function AddAgentPanel({
@@ -28,7 +28,7 @@ export function AddAgentPanel({
     setBusy("Connecting wallet…");
     setError("");
     try {
-      const { address } = await connectMonadWallet();
+      const { address } = await connectChainWallet();
       setWallet(address);
       setNotice(`Connected ${address}`);
     } catch (err) {
@@ -44,11 +44,11 @@ export function AddAgentPanel({
       setError("Name the agent.");
       return;
     }
-    setBusy("Registering on Monad…");
+    setBusy("Registering on Base…");
     setError("");
     setNotice("");
     try {
-      const result = await registerAgentOnMonad({
+      const result = await registerAgentOnChain({
         name: name.trim(),
         description: description.trim() || name.trim(),
       });
@@ -102,7 +102,7 @@ export function AddAgentPanel({
       onChange(agents);
       setRegisteredId(agentId);
       setTxHash("");
-      setNotice(`Read agent #${agentId} from Monad.`);
+      setNotice(`Read agent #${agentId} from Base.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "That id is not on the registry.");
     } finally {
@@ -114,7 +114,7 @@ export function AddAgentPanel({
     <section className="ledger-card">
       <h2>Register your invoice agent</h2>
       <p className="obs-lead">
-        This is your agent for {serviceName}. It is the one that writes invoices for the company bots that read the service. Registration follows midnightx402 on Monad: <code>register(agentURI)</code>, read <code>Registered</code>, then <code>setAgentURI</code>. Your wallet signs both and needs testnet MON for gas.
+        This is your agent for {serviceName}. It is the one that writes invoices for the company bots that read the service. Registration uses the ERC-8004 identity registry on Base: <code>register(agentURI)</code>, read <code>Registered</code>, then <code>setAgentURI</code>. Your wallet signs both and needs a little Base Sepolia ETH for gas.
       </p>
       <form className="ledger-form" onSubmit={register}>
         <label>
@@ -129,7 +129,7 @@ export function AddAgentPanel({
           {wallet ? "Wallet connected" : "Connect wallet"}
         </button>
         <button type="submit" className="obs-btn-sm is-primary" disabled={Boolean(busy)}>
-          {busy === "Registering on Monad…" ? busy : "Register on Monad"}
+          {busy === "Registering on Base…" ? busy : "Register on Base"}
         </button>
       </form>
       {wallet && <p className="obs-meta mono">{wallet}</p>}
@@ -140,7 +140,7 @@ export function AddAgentPanel({
         </label>
         <button type="submit" className="obs-btn-sm" disabled={Boolean(busy)}>Read from registry</button>
       </form>
-      {busy && busy !== "Registering on Monad…" && <p className="obs-meta">{busy}</p>}
+      {busy && busy !== "Registering on Base…" && <p className="obs-meta">{busy}</p>}
       {error && <p className="obs-lock-error">{error}</p>}
       {notice && <p className="obs-toast">{notice}</p>}
       {registeredId !== null && (
@@ -150,7 +150,7 @@ export function AddAgentPanel({
         </p>
       )}
       <p className="obs-meta">
-        Registry <a href={explorerAddressUrl(MONAD_TESTNET_IDENTITY_REGISTRY)} target="_blank" rel="noreferrer">0x8004A818…BD9e</a>
+        Registry <a href={explorerAddressUrl(IDENTITY_REGISTRY)} target="_blank" rel="noreferrer">0x8004A818…BD9e</a>
       </p>
     </section>
   );
