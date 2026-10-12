@@ -23,7 +23,7 @@ try {
   const envPath = join(dirname(fileURLToPath(import.meta.url)), ".env.local");
   for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
     const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+    if (m && process.env[m[1]] == null) process.env[m[1]] = m[2];
   }
 } catch { /* no .env.local, that's fine */ }
 
@@ -48,6 +48,8 @@ const BASE_NAME = BASE_MAINNET ? "Base" : "Base Sepolia";
 const BASE_RPC = process.env.BASE_RPC_URL || (BASE_MAINNET ? "https://mainnet.base.org" : "https://sepolia.base.org");
 const BASE_EXPLORER = BASE_MAINNET ? "https://basescan.org" : "https://sepolia.basescan.org";
 const BASE_API = BASE_MAINNET ? "https://base.blockscout.com/api" : "https://base-sepolia.blockscout.com/api";
+// Optional. A free Blockscout API key (dev.blockscout.com) lifts the explorer rate limit.
+const BLOCKSCOUT_KEY = process.env.BLOCKSCOUT_API_KEY || "";
 const BASE_USDC = BASE_MAINNET ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 // Public address. The matching private key is BUYER_WALLET_PRIVATE_KEY, read only
 // inside wallet/transfer.mjs and never sent to the browser.
@@ -133,6 +135,7 @@ function refreshHistory() {
       const search = new URLSearchParams({
         module: "account", action: "tokentx", address, contractaddress: BASE_USDC, page: "1", offset: "10", sort: "desc",
       });
+      if (BLOCKSCOUT_KEY) search.set("apikey", BLOCKSCOUT_KEY);
       const res = await fetch(`${BASE_API}?${search}`);
       const body = await res.json();
       for (const tx of Array.isArray(body.result) ? body.result : []) {
@@ -648,9 +651,20 @@ async function siteJson(path, init = {}) {
   const res = await fetch(SITE + path + (path.includes("?") ? "&" : "?") + "auth=" + encodeURIComponent(ADMIN_KEY), { ...init, headers: { "x-admin-key": ADMIN_KEY, "Content-Type": "application/json", ...(init.headers || {}) } });
   return res.json();
 }
-async function siteRead(path) {
-  const res = await fetch(SITE + path + (path.includes("?") ? "&" : "?") + "auth=" + encodeURIComponent(ANALYTICS_KEY));
-  return res.json();
+const readCache = new Map();
+// Cached so a busy page never hammers the blog: one analytics request per minute, however many tabs are open.
+async function siteRead(path, ttlMs = 60_000) {
+  const hit = readCache.get(path);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.data;
+  try {
+    const res = await fetch(SITE + path + (path.includes("?") ? "&" : "?") + "auth=" + encodeURIComponent(ANALYTICS_KEY));
+    const data = await res.json();
+    readCache.set(path, { at: Date.now(), data });
+    return data;
+  } catch (err) {
+    if (hit) return hit.data;
+    throw err;
+  }
 }
 const modeOf = (r) => (r.allowed ? "free" : r.charge ? "charge" : "block");
 
@@ -746,10 +760,10 @@ async function handleApi(req, res, url) {
     }
   }
   if (url.pathname === "/api/policy" && req.method === "GET") {
-    if (!ADMIN_KEY) return json(200, { mode: null });
-    const data = await siteJson("/api/bot-rules");
+    if (!ANALYTICS_KEY) return json(200, { mode: "charge" });
+    const data = await siteRead("/api/bot-rules");
     const rule = (data.rules || []).find((r) => r.id === RULE_ID);
-    return json(200, { mode: rule ? modeOf(rule) : null });
+    return json(200, { mode: rule ? modeOf(rule) : "charge" });
   }
   if (url.pathname === "/api/policy" && req.method === "POST") {
     if (!ADMIN_KEY) return json(403, { error: "ADMIN_KEY not set" });
@@ -757,6 +771,7 @@ async function handleApi(req, res, url) {
     const mode = body.mode;
     if (!["free", "charge", "block"].includes(mode)) return json(400, { error: "bad mode" });
     const data = await siteJson("/api/bot-rules", { method: "POST", body: JSON.stringify({ id: RULE_ID, allowed: mode === "free", charge: mode === "charge" }) });
+    readCache.delete("/api/bot-rules");
     const rule = (data.rules || []).find((r) => r.id === RULE_ID);
     const applied = await waitUntilLive(mode);
     return json(200, { mode: rule ? modeOf(rule) : null, applied });

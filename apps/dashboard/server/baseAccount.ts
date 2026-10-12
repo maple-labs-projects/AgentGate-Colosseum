@@ -7,6 +7,10 @@ const USDC = MAINNET
   ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
   : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
+// Optional. A free Blockscout API key (dev.blockscout.com) lifts the explorer rate limit.
+const BLOCKSCOUT_KEY = process.env.BLOCKSCOUT_API_KEY ?? "";
+const lastTransfers = new Map<string, unknown[]>();
+
 const cache = new Map<string, { at: number; body: AccountPayload }>();
 const inflight = new Map<string, Promise<AccountPayload>>();
 
@@ -37,12 +41,18 @@ async function usdcTransfers(address: string): Promise<unknown[]> {
     offset: "10",
     sort: "desc",
   });
+  if (BLOCKSCOUT_KEY) search.set("apikey", BLOCKSCOUT_KEY);
   try {
     const response = await fetch(`${EXPLORER_API}?${search}`);
     const body = (await response.json()) as { result?: unknown };
-    return Array.isArray(body.result) ? body.result.slice(0, 10) : [];
+    if (Array.isArray(body.result)) {
+      const rows = body.result.slice(0, 10);
+      lastTransfers.set(address, rows);
+      return rows;
+    }
+    return lastTransfers.get(address) ?? [];
   } catch {
-    return [];
+    return lastTransfers.get(address) ?? [];
   }
 }
 

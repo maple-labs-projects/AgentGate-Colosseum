@@ -1,5 +1,5 @@
 import type { Connect, Plugin } from "vite";
-import type { ResolvedConfig } from "vite";
+import { loadEnv, type ResolvedConfig } from "vite";
 import { loadBaseAccount, readAddress } from "./server/baseAccount";
 import { loadScanFeedback } from "./server/scanFeedback";
 
@@ -53,6 +53,8 @@ export function baseAccountApi(): Plugin {
     name: "base-account-api",
     configResolved(resolved) {
       config = resolved;
+      const key = loadEnv(resolved.mode, resolved.envDir, "").BLOCKSCOUT_API_KEY;
+      if (key && !process.env.BLOCKSCOUT_API_KEY) process.env.BLOCKSCOUT_API_KEY = key;
     },
     configureServer(server) {
       attach(server.middlewares, config);

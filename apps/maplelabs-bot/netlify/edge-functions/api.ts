@@ -32,6 +32,8 @@ const BASE_RPC = Deno.env.get("BASE_RPC_URL") || (BASE_MAINNET ? "https://mainne
 const BASE_EXPLORER = BASE_MAINNET ? "https://basescan.org" : "https://sepolia.basescan.org";
 const BASE_API = BASE_MAINNET ? "https://base.blockscout.com/api" : "https://base-sepolia.blockscout.com/api";
 const BASE_USDC = BASE_MAINNET ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+// Optional. A free Blockscout API key (dev.blockscout.com) lifts the explorer rate limit so Last 3 always loads.
+const BLOCKSCOUT_KEY = Deno.env.get("BLOCKSCOUT_API_KEY") || "";
 const BUYER_KEY = Deno.env.get("BUYER_WALLET_PRIVATE_KEY") || "";
 const BUYER_ADDRESS = Deno.env.get("BUYER_WALLET_ADDRESS") || "";
 const SELLER_ADDRESS = Deno.env.get("SELLER_WALLET_ADDRESS") || "0xC90AC2b557088c50264de70969D71419311636c1";
@@ -56,30 +58,42 @@ function fixedAmount(amount: string) {
   return FIXED_AMOUNTS.has(fixed) ? fixed : null;
 }
 
+const txCache = new Map<string, { at: number; rows: unknown[] }>();
+
+// Returns the last 3 USDC transfers, or null when the explorer is busy and nothing is cached.
 async function recentUsdc(address: string) {
+  const hit = txCache.get(address);
+  if (hit && Date.now() - hit.at < 45_000) return hit.rows;
   try {
-    // Blockscout's Etherscan-style API lists a wallet's USDC transfers in one call. No key needed.
+    // Blockscout's Etherscan-style API lists a wallet's USDC transfers in one call.
     const search = new URLSearchParams({
       module: "account", action: "tokentx", address, contractaddress: BASE_USDC, page: "1", offset: "3", sort: "desc",
     });
+    if (BLOCKSCOUT_KEY) search.set("apikey", BLOCKSCOUT_KEY);
     const res = await fetch(`${BASE_API}?${search}`);
     const body = await res.json();
+    if (!Array.isArray(body.result)) {
+      if (/no .*transactions? found|no token transfers/i.test(String(body.message))) { txCache.set(address, { at: Date.now(), rows: [] }); return []; }
+      throw new Error(body.message || "explorer busy");
+    }
     const me = address.toLowerCase();
-    return (Array.isArray(body.result) ? body.result : []).slice(0, 3).map((tx: Record<string, string>) => ({
+    const rows = body.result.slice(0, 3).map((tx: Record<string, string>) => ({
       hash: tx.hash,
       direction: String(tx.from).toLowerCase() === me ? "out" : "in",
       amount: (Number(tx.value || 0) / 1e6).toFixed(2),
       block: Number(tx.blockNumber || 0),
       explorer: `${BASE_EXPLORER}/tx/${tx.hash}`,
     }));
+    txCache.set(address, { at: Date.now(), rows });
+    return rows;
   } catch {
-    return [];
+    return hit ? hit.rows : null;
   }
 }
 
 async function walletBalances(address: string) {
   if (!address) return null;
-  const [ethWei, usdcRaw, txs] = await Promise.all([
+  const [ethWei, usdcRaw, txRows] = await Promise.all([
     rpcCall("eth_getBalance", [address, "latest"]),
     rpcCall("eth_call", [{ to: BASE_USDC, data: "0x70a08231" + address.slice(2).toLowerCase().padStart(64, "0") }, "latest"]),
     recentUsdc(address),
@@ -89,7 +103,8 @@ async function walletBalances(address: string) {
     eth: (Number(BigInt(ethWei)) / 1e18).toFixed(4),
     usdc: (Number(BigInt(usdcRaw || "0x0")) / 1e6).toFixed(2),
     explorer: `${BASE_EXPLORER}/address/${address}`,
-    txs,
+    txs: txRows ?? [],
+    txsBusy: txRows === null,
   };
 }
 
@@ -522,9 +537,20 @@ async function siteJson(path: string, init: RequestInit = {}) {
   const res = await fetch(SITE + path + (path.includes("?") ? "&" : "?") + "auth=" + encodeURIComponent(ADMIN_KEY), { ...init, headers: { "x-admin-key": ADMIN_KEY, "Content-Type": "application/json", ...(init.headers || {}) } });
   return res.json();
 }
-async function siteRead(path: string) {
-  const res = await fetch(SITE + path + (path.includes("?") ? "&" : "?") + "auth=" + encodeURIComponent(ANALYTICS_KEY));
-  return res.json();
+const readCache = new Map<string, { at: number; data: any }>();
+// Cached so a busy page never hammers the blog: one analytics request per minute, however many tabs are open.
+async function siteRead(path: string, ttlMs = 60_000) {
+  const hit = readCache.get(path);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.data;
+  try {
+    const res = await fetch(SITE + path + (path.includes("?") ? "&" : "?") + "auth=" + encodeURIComponent(ANALYTICS_KEY));
+    const data = await res.json();
+    readCache.set(path, { at: Date.now(), data });
+    return data;
+  } catch (err) {
+    if (hit) return hit.data;
+    throw err;
+  }
 }
 const modeOf = (r: { allowed: boolean; charge?: boolean }) => (r.allowed ? "free" : r.charge ? "charge" : "block");
 
@@ -692,10 +718,10 @@ export default async (req: Request) => {
   }
 
   if (pathname === "/api/policy" && req.method === "GET") {
-    if (!ADMIN_KEY) return json({ mode: null });
-    const data = await siteJson("/api/bot-rules");
+    if (!ANALYTICS_KEY) return json({ mode: "charge" });
+    const data = await siteRead("/api/bot-rules");
     const rule = (data.rules || []).find((r) => r.id === RULE_ID);
-    return json({ mode: rule ? modeOf(rule) : null });
+    return json({ mode: rule ? modeOf(rule) : "charge" });
   }
 
   if (pathname === "/api/policy" && req.method === "POST") {
@@ -705,6 +731,7 @@ export default async (req: Request) => {
     const mode = body.mode;
     if (!["free", "charge", "block"].includes(mode)) return json({ error: "bad mode" }, 400);
     const data = await siteJson("/api/bot-rules", { method: "POST", body: JSON.stringify({ id: RULE_ID, allowed: mode === "free", charge: mode === "charge" }) });
+    readCache.delete("/api/bot-rules");
     const rule = (data.rules || []).find((r) => r.id === RULE_ID);
     const applied = await waitUntilLive(mode);
     return json({ mode: rule ? modeOf(rule) : null, applied });
