@@ -84,7 +84,6 @@ export type AgentWallet = {
 };
 
 export type OwnerSession = {
-  credentialId: string;
   ownerAddress: string;
 };
 
