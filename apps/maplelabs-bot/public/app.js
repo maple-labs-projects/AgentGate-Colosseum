@@ -147,8 +147,8 @@ function paintTx(id, txs) {
 async function pollWallets() {
   try {
     const { buyer, seller } = await (await fetch("/api/wallets")).json();
-    if (buyer) { $("#buyerUsdc").textContent = `${buyer.usdc} USDC`; $("#buyerMon").textContent = `${buyer.mon} MON`; paintTx("buyerTx", buyer.txs); }
-    if (seller) { $("#sellerUsdc").textContent = `${seller.usdc} USDC`; $("#sellerMon").textContent = `${seller.mon} MON`; paintTx("sellerTx", seller.txs); }
+    if (buyer) { $("#buyerUsdc").textContent = `${buyer.usdc} USDC`; $("#buyerMon").textContent = `${buyer.eth} ETH`; paintTx("buyerTx", buyer.txs); }
+    if (seller) { $("#sellerUsdc").textContent = `${seller.usdc} USDC`; $("#sellerMon").textContent = `${seller.eth} ETH`; paintTx("sellerTx", seller.txs); }
     if ((buyer && buyer.txs == null) || (seller && seller.txs == null)) setTimeout(pollWallets, 2000);
   } catch { /* balances are a nice-to-have, ignore failures */ }
 }
@@ -163,7 +163,7 @@ function fixedQuote() {
 }
 
 // A 402 shows this card before any USDC moves. Approve asks the server to send that
-// amount on Monad from the buyer wallet to the configured seller. The key never
+// amount on Base from the buyer wallet to the configured seller. The key never
 // reaches this page. Decline sends nothing.
 function approvalCardHtml() {
   const id = `ap${++state.approveId}`;
@@ -171,7 +171,7 @@ function approvalCardHtml() {
   const to = (state.wallets && state.wallets.seller) || "";
   const ready = state.canPay ? "" : `<div class="approve-note">The server has no buyer key yet, so Approve cannot send.</div>`;
   return `<div class="approve-card" id="${id}" data-path="${esc(state.last402Path || "")}">
-    <div class="approve-status">$${esc(quote.amount)} USDC on Monad, to ${short(to)}</div>
+    <div class="approve-status">$${esc(quote.amount)} USDC on Base, to ${short(to)}</div>
     <div class="muted">Pay this, or not?</div>
     ${ready}
     <div class="approve-row">
@@ -224,7 +224,7 @@ window.approvePay = async (id, amount) => {
     });
     status.textContent = `Paid $${esc(data.amount)}.`;
     card.querySelector(".muted").textContent = "";
-    card.insertAdjacentHTML("beforeend", `<div class="approve-note"><a href="${esc(data.explorer)}" target="_blank" rel="noreferrer">MonadVision</a></div>`);
+    card.insertAdjacentHTML("beforeend", `<div class="approve-note"><a href="${esc(data.explorer)}" target="_blank" rel="noreferrer">BaseScan</a></div>`);
     const opened = await openPaidPost(paidPath, data.amount);
     const msg = card.closest(".msg");
     const answer = msg && msg.querySelector(".answer");
