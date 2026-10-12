@@ -1,4 +1,4 @@
-// USDC transfer on Monad testnet, buyer wallet to a recipient.
+// USDC transfer on Base (Base Sepolia by default), buyer wallet to a recipient.
 // The buyer key is read from BUYER_WALLET_PRIVATE_KEY (env or a gitignored .env.local).
 // It is never logged and never returned. Callers decide the recipient; the demo API
 // only ever passes the configured seller address.
@@ -22,17 +22,20 @@ function loadEnv(path) {
 loadEnv(join(HERE, ".env.local"));
 loadEnv(join(HERE, "..", ".env.local"));
 
-export const MONAD_USDC = "0x534b2f3A21130d7a60830c2Df862319e593943A3";
-export const MONAD_EXPLORER = "https://testnet.monadvision.com";
+const BASE_MAINNET = process.env.BASE_NETWORK === "mainnet";
+export const BASE_NAME = BASE_MAINNET ? "Base" : "Base Sepolia";
+export const BASE_USDC = BASE_MAINNET ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+export const BASE_EXPLORER = BASE_MAINNET ? "https://basescan.org" : "https://sepolia.basescan.org";
+const BASE_RPC = process.env.BASE_RPC_URL || (BASE_MAINNET ? "https://mainnet.base.org" : "https://sepolia.base.org");
 export const MAX_USDC = "1";
 
-const monadTestnet = defineChain({
-  id: 10143,
-  name: "Monad Testnet",
-  nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
-  rpcUrls: { default: { http: [process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz"] } },
-  blockExplorers: { default: { name: "MonadVision", url: MONAD_EXPLORER } },
-  testnet: true,
+const baseChain = defineChain({
+  id: BASE_MAINNET ? 8453 : 84532,
+  name: BASE_NAME,
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: { default: { http: [BASE_RPC] } },
+  blockExplorers: { default: { name: "BaseScan", url: BASE_EXPLORER } },
+  testnet: !BASE_MAINNET,
 });
 
 const USDC_ABI = [
@@ -81,10 +84,10 @@ export async function transferUsdc({ to, amount, dryRun = false }) {
   }
 
   const account = buyerAccount();
-  const rpc = process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
-  const publicClient = createPublicClient({ chain: monadTestnet, transport: http(rpc) });
-  const [fromBalance, mon] = await Promise.all([
-    publicClient.readContract({ address: MONAD_USDC, abi: USDC_ABI, functionName: "balanceOf", args: [account.address] }),
+  const rpc = BASE_RPC;
+  const publicClient = createPublicClient({ chain: baseChain, transport: http(rpc) });
+  const [fromBalance, eth] = await Promise.all([
+    publicClient.readContract({ address: BASE_USDC, abi: USDC_ABI, functionName: "balanceOf", args: [account.address] }),
     publicClient.getBalance({ address: account.address }),
   ]);
   if (fromBalance < value) {
@@ -92,8 +95,8 @@ export async function transferUsdc({ to, amount, dryRun = false }) {
     err.status = 400;
     throw err;
   }
-  if (mon === 0n) {
-    const err = new Error("Buyer wallet has 0 MON, so it cannot pay gas.");
+  if (eth === 0n) {
+    const err = new Error("Buyer wallet has 0 ETH, so it cannot pay gas.");
     err.status = 400;
     throw err;
   }
@@ -103,20 +106,20 @@ export async function transferUsdc({ to, amount, dryRun = false }) {
     to,
     amount: formatUnits(value, 6),
     usdc: formatUnits(fromBalance, 6),
-    mon: formatUnits(mon, 18),
+    eth: formatUnits(eth, 18),
   };
   if (dryRun) return { ...preview, dryRun: true };
 
-  const walletClient = createWalletClient({ account, chain: monadTestnet, transport: http(rpc) });
+  const walletClient = createWalletClient({ account, chain: baseChain, transport: http(rpc) });
   const gas = await publicClient.estimateContractGas({
-    address: MONAD_USDC,
+    address: BASE_USDC,
     abi: USDC_ABI,
     functionName: "transfer",
     args: [to, value],
     account,
   });
   const hash = await walletClient.writeContract({
-    address: MONAD_USDC,
+    address: BASE_USDC,
     abi: USDC_ABI,
     functionName: "transfer",
     args: [to, value],
@@ -133,6 +136,6 @@ export async function transferUsdc({ to, amount, dryRun = false }) {
     to,
     amount: formatUnits(value, 6),
     txHash: hash,
-    explorer: `${MONAD_EXPLORER}/tx/${hash}`,
+    explorer: `${BASE_EXPLORER}/tx/${hash}`,
   };
 }
