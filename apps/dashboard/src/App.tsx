@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { defaultRules } from "./data";
-import { unlockOwnerAccount } from "./modules/mera/verifyService";
-import { MONAD_RECEIVE_ADDRESS } from "./modules/chain/monad";
+import { RECEIVE_ADDRESS } from "./modules/chain/base";
 import { blogIsVerified, fetchBlogAnalytics, fetchBlogRules, markBlogVerified, updateBlogRules } from "./modules/services/blogAnalytics";
-import { readMonadAccount } from "./modules/wallet/etherscan";
+import { readChainAccount } from "./modules/wallet/account";
 import { hideService, loadServices, nextServiceId, parseOrigin, saveUserServices } from "./modules/services/catalog";
-import type { AgentView, OwnerSession, Range, Rule, RuleMode, Service, ServiceView, Summary, Tab } from "./types";
+import type { AgentView, Range, Rule, RuleMode, Service, ServiceView, Summary, Tab } from "./types";
 import { ServiceBoard } from "./screens/ServiceBoard";
 import { IdentityView } from "./views/IdentityView";
 import { InvoicesView } from "./views/InvoicesView";
@@ -48,7 +47,6 @@ export function App() {
   const [agentView, setAgentView] = useState<AgentView>("all");
   const [range, setRange] = useState<Range>("week");
   const [rulesByService, setRulesByService] = useState<Record<string, Rule[]>>(() => initialRules(loadServices()));
-  const [owner, setOwner] = useState<OwnerSession | null>(null);
 
   useEffect(() => {
     localStorage.setItem("agentledger.rules", JSON.stringify(rulesByService));
@@ -64,7 +62,7 @@ export function App() {
         if (cancel) return;
         const windowMs = range === "day" ? 86_400_000 : range === "week" ? 7 * 86_400_000 : 30 * 86_400_000;
         try {
-          const account = await readMonadAccount(MONAD_RECEIVE_ADDRESS);
+          const account = await readChainAccount(RECEIVE_ADDRESS);
           const incoming = account.transactions.filter((tx) => tx.direction === "in" && Date.now() - tx.timeMs <= windowMs);
           const chainRevenue = incoming.reduce((sum, tx) => sum + tx.amountNumber, 0);
           const payers = new Set(incoming.map((tx) => tx.from.toLowerCase()).filter(Boolean)).size;
@@ -247,16 +245,7 @@ export function App() {
           onVerify={verifyBlog}
         />
       )}
-      {tab === "wallet" && (
-        <WalletView
-          owner={owner}
-          onUnlock={async () => {
-            const next = await unlockOwnerAccount();
-            setOwner({ credentialId: next.credentialId, ownerAddress: next.ownerAddress });
-          }}
-          onLock={() => setOwner(null)}
-        />
-      )}
+      {tab === "wallet" && <WalletView />}
       {tab === "identity" && <IdentityView services={services} />}
       {tab === "invoices" && <InvoicesView />}
     </>
