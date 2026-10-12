@@ -29,7 +29,7 @@ Put the keys in `.env.local` next to `server.mjs` instead if you would rather no
 
 ## Payment
 
-A 402 shows an Approve card. Approve sends testnet USDC on Monad from `BUYER_WALLET_ADDRESS` to `SELLER_WALLET_ADDRESS` (default `0xC90AC2b557088c50264de70969D71419311636c1`). The private key stays in `BUYER_WALLET_PRIVATE_KEY` on the server. Each click is capped at 1 USDC, and the recipient is always the seller, never an address from the browser.
+A 402 shows an Approve card. Approve sends testnet USDC on Base from `BUYER_WALLET_ADDRESS` to `SELLER_WALLET_ADDRESS` (default `0xC90AC2b557088c50264de70969D71419311636c1`). The private key stays in `BUYER_WALLET_PRIVATE_KEY` on the server. Each click is capped at 1 USDC, and the recipient is always the seller, never an address from the browser.
 
 The training bundle is still built from `data/snapshot.json`. Paying does not unlock the live blog. Prices (`$0.01` per search page, `$0.15` starter / `$0.40` full, 48 hours) are v1 placeholders.
 
