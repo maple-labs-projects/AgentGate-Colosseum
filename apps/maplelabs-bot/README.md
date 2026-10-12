@@ -45,3 +45,9 @@ The training bundle is still built from `data/snapshot.json`. Paying does not un
 - `BUYER_WALLET_ADDRESS`, `BUYER_WALLET_PRIVATE_KEY`, and optional `SELLER_WALLET_ADDRESS`. Without the private key, balances still show and Approve reports that it cannot send.
 - On Netlify, set the same three variables on the site. The edge function `POST /api/pay` uses them. The key is never returned to the page.
 - The policy switch changes the live rule for `MapleLabsBot`. The site takes up to about a minute to pick it up; the switch waits until it actually behaves the new way before re-enabling itself.
+
+## Tests
+
+`npm test` runs the bot against a fake blog on localhost. It checks the crawl and the 402, the globe and log data, the Charge default and that the blog is asked for analytics only once however often the page polls. It never calls the real blog and never calls `/api/pay`.
+
+Run `npm install` once inside `wallet/` before using Approve.

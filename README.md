@@ -38,8 +38,19 @@ Dashboard (`apps/dashboard/.env.local`):
 | `VITE_INVOICE_AGENT_ID` | Your ERC-8004 agent id on Base. Register it from the Identity tab, then set this. Until then no agent is shown as verified |
 | `VITE_BLOG_ANALYTICS_KEY` | Key for the blog analytics endpoint |
 
-Demo crawler (`apps/maplelabs-bot/.env.local`, gitignored): `BUYER_WALLET_PRIVATE_KEY`, `BUYER_WALLET_ADDRESS`,
-`SELLER_WALLET_ADDRESS`, `BASE_NETWORK`, `BASE_RPC_URL`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ADMIN_KEY`.
+Demo crawler (`apps/maplelabs-bot/.env.local`, gitignored):
+
+| Variable | Purpose |
+|---|---|
+| `BUYER_WALLET_PRIVATE_KEY`, `BUYER_WALLET_ADDRESS` | Wallet that pays after you click Approve. Leave unset on a public deploy |
+| `SELLER_WALLET_ADDRESS` | Receives the USDC |
+| `BASE_NETWORK`, `BASE_RPC_URL` | Network and RPC. Default Base Sepolia |
+| `BLOCKSCOUT_API_KEY` | Optional. Free key from dev.blockscout.com. Stops the explorer rate limit that empties "Last 3 transfers". The dashboard API reads the same variable |
+| `ANALYTICS_KEY` | Read-only access to the blog's analytics. Powers the globe dots and the gate log. It cannot change the paywall |
+| `ADMIN_KEY` | Optional. Only needed to switch Free/Charge/Block from the preview |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | Optional brains for the bot |
+
+Test without touching the real blog or moving money: `cd apps/maplelabs-bot && npm test`. It starts a fake blog on localhost and finishes in a couple of seconds.
 The buyer key never leaves the server and is only used after Approve. See `apps/maplelabs-bot/README.md`.
 
 ## How payment works on Base
