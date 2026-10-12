@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Sends USDC on Monad testnet from the buyer wallet to the given recipient.
+// Sends USDC on Base (Base Sepolia by default) from the buyer wallet to the given recipient.
 // The key stays in BUYER_WALLET_PRIVATE_KEY. The demo's Approve button calls the
 // same transferUsdc() through POST /api/pay, and that route only pays the seller.
 //
@@ -22,8 +22,8 @@ function args() {
 async function main() {
   const { to, amount, dryRun } = args();
   const result = await transferUsdc({ to, amount, dryRun });
-  console.log("Monad testnet USDC transfer");
-  console.log("  from  :", result.from, dryRun ? `(${result.usdc} USDC, ${result.mon} MON for gas)` : "");
+  console.log("Base USDC transfer");
+  console.log("  from  :", result.from, dryRun ? `(${result.usdc} USDC, ${result.eth} ETH for gas)` : "");
   console.log("  to    :", result.to);
   console.log("  amount:", result.amount, "USDC");
   if (dryRun) {
