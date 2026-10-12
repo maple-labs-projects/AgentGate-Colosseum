@@ -1,7 +1,7 @@
 // MapleLabsBot demo API, ported from server.mjs to run as a Netlify Edge Function (Deno).
 // Same logic as the local Node server: two modes (Search, Train), three brains
 // (MapleLabsBot's own script, ChatGPT, Claude), and a snapshot-based training bundle.
-// Approve sends Monad testnet USDC from the buyer key to the seller. See server.mjs.
+// Approve sends Base Sepolia USDC from the buyer key to the seller. See server.mjs.
 //
 // @ts-nocheck (Deno-only globals: Deno.env, EdgeFunction config. Not type-checked by tsc.)
 
@@ -22,17 +22,20 @@ const DEMO_POLICY_KEY = Deno.env.get("DEMO_POLICY_KEY") || "";
 const RULE_ID = "maplelabs";
 const POLITE_DELAY_MS = 350;
 
-// Monad testnet, same chain and USDC contract apps/dashboard already uses (chain/monad.ts).
-// Balances are read here. Approve signs with BUYER_WALLET_PRIVATE_KEY and never returns it.
-const MONAD_RPC = Deno.env.get("MONAD_RPC_URL") || "https://testnet-rpc.monad.xyz";
-const MONAD_EXPLORER = "https://testnet.monadvision.com";
-const MONAD_USDC = "0x534b2f3A21130d7a60830c2Df862319e593943A3";
+// Base. Defaults to Base Sepolia (testnet USDC, no real money). BASE_NETWORK=mainnet switches to Base mainnet.
+// Balances are read here. Signing happens in wallet/transfer.mjs, only after Approve.
+const BASE_MAINNET = Deno.env.get("BASE_NETWORK") === "mainnet";
+const BASE_NAME = BASE_MAINNET ? "Base" : "Base Sepolia";
+const BASE_RPC = Deno.env.get("BASE_RPC_URL") || (BASE_MAINNET ? "https://mainnet.base.org" : "https://sepolia.base.org");
+const BASE_EXPLORER = BASE_MAINNET ? "https://basescan.org" : "https://sepolia.basescan.org";
+const BASE_API = BASE_MAINNET ? "https://base.blockscout.com/api" : "https://base-sepolia.blockscout.com/api";
+const BASE_USDC = BASE_MAINNET ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 const BUYER_KEY = Deno.env.get("BUYER_WALLET_PRIVATE_KEY") || "";
 const BUYER_ADDRESS = Deno.env.get("BUYER_WALLET_ADDRESS") || "";
 const SELLER_ADDRESS = Deno.env.get("SELLER_WALLET_ADDRESS") || "0xC90AC2b557088c50264de70969D71419311636c1";
 
 async function rpcCall(method: string, params: unknown[]) {
-  const res = await fetch(MONAD_RPC, {
+  const res = await fetch(BASE_RPC, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
@@ -42,7 +45,6 @@ async function rpcCall(method: string, params: unknown[]) {
   return body.result;
 }
 
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const FIXED_AMOUNTS = new Set(["0.01", "0.15", "0.40"]);
 
 function fixedAmount(amount: string) {
@@ -54,33 +56,20 @@ function fixedAmount(amount: string) {
 
 async function recentUsdc(address: string) {
   try {
-    const latest = BigInt(await rpcCall("eth_blockNumber", []));
-    const pad = "0x" + address.slice(2).toLowerCase().padStart(64, "0");
-    const logs: { transactionHash: string; topics: string[]; data: string; blockNumber: string }[] = [];
-    // This RPC rejects eth_getLogs ranges wider than 100 blocks.
-    for (let i = 0; i < 12 && logs.length < 3; i++) {
-      const end = latest - BigInt(i * 100);
-      if (end < 0n) break;
-      const start = end > 99n ? end - 99n : 0n;
-      const range = { fromBlock: "0x" + start.toString(16), toBlock: "0x" + end.toString(16) };
-      const [outgoing, incoming] = await Promise.all([
-        rpcCall("eth_getLogs", [{ address: MONAD_USDC, ...range, topics: [TRANSFER_TOPIC, pad] }]),
-        rpcCall("eth_getLogs", [{ address: MONAD_USDC, ...range, topics: [TRANSFER_TOPIC, null, pad] }]),
-      ]);
-      logs.push(...(outgoing || []), ...(incoming || []));
-    }
-    const seen = new Set<string>();
-    return logs
-      .map((log) => ({
-        hash: log.transactionHash,
-        direction: String(log.topics[1]).toLowerCase() === pad ? "out" : "in",
-        amount: (Number(BigInt(log.data)) / 1e6).toFixed(2),
-        block: Number(BigInt(log.blockNumber)),
-        explorer: `${MONAD_EXPLORER}/tx/${log.transactionHash}`,
-      }))
-      .sort((a, b) => b.block - a.block)
-      .filter((row) => (seen.has(row.hash) ? false : seen.add(row.hash)))
-      .slice(0, 3);
+    // Blockscout's Etherscan-style API lists a wallet's USDC transfers in one call. No key needed.
+    const search = new URLSearchParams({
+      module: "account", action: "tokentx", address, contractaddress: BASE_USDC, page: "1", offset: "3", sort: "desc",
+    });
+    const res = await fetch(`${BASE_API}?${search}`);
+    const body = await res.json();
+    const me = address.toLowerCase();
+    return (Array.isArray(body.result) ? body.result : []).slice(0, 3).map((tx: Record<string, string>) => ({
+      hash: tx.hash,
+      direction: String(tx.from).toLowerCase() === me ? "out" : "in",
+      amount: (Number(tx.value || 0) / 1e6).toFixed(2),
+      block: Number(tx.blockNumber || 0),
+      explorer: `${BASE_EXPLORER}/tx/${tx.hash}`,
+    }));
   } catch {
     return [];
   }
@@ -88,16 +77,16 @@ async function recentUsdc(address: string) {
 
 async function walletBalances(address: string) {
   if (!address) return null;
-  const [monWei, usdcRaw, txs] = await Promise.all([
+  const [ethWei, usdcRaw, txs] = await Promise.all([
     rpcCall("eth_getBalance", [address, "latest"]),
-    rpcCall("eth_call", [{ to: MONAD_USDC, data: "0x70a08231" + address.slice(2).toLowerCase().padStart(64, "0") }, "latest"]),
+    rpcCall("eth_call", [{ to: BASE_USDC, data: "0x70a08231" + address.slice(2).toLowerCase().padStart(64, "0") }, "latest"]),
     recentUsdc(address),
   ]);
   return {
     address,
-    mon: (Number(BigInt(monWei)) / 1e18).toFixed(4),
+    eth: (Number(BigInt(ethWei)) / 1e18).toFixed(4),
     usdc: (Number(BigInt(usdcRaw || "0x0")) / 1e6).toFixed(2),
-    explorer: `${MONAD_EXPLORER}/address/${address}`,
+    explorer: `${BASE_EXPLORER}/address/${address}`,
     txs,
   };
 }
@@ -111,7 +100,7 @@ const PRICES = {
   },
 };
 
-function monadQuote(mode: string, bundleChoice?: string) {
+function baseQuote(mode: string, bundleChoice?: string) {
   const usd = mode === "train"
     ? PRICES.train[bundleChoice === "full" ? "full" : "starter"].usd
     : PRICES.search.perPage;
@@ -264,11 +253,11 @@ async function runScripted({ mode, question, respectRobots, bundleChoice }: RunO
     if (r && r.status === 402) {
       const tier = bundleChoice || "starter";
       const paid = payForBundle(tier);
-      emit({ type: "payment", price: `$${Number(paid.charged).toFixed(2)} USDC`, network: "Monad" });
+      emit({ type: "payment", price: `$${Number(paid.charged).toFixed(2)} USDC`, network: "Base" });
       emit({ type: "paid", tier: paid.tier.label, charged: paid.charged, hours: PRICES.train.hours });
       const bundle = buildBundle(tier, question);
       emit({ type: "bundle", bundle });
-      emit({ type: "answer", text: `The post returned HTTP 402. Click Approve to send $${paid.charged} USDC on Monad testnet from the buyer wallet to the seller. The ${paid.tier.label} (${bundle.postCount} posts) is a local snapshot, ready once you approve.`, sources: [] });
+      emit({ type: "answer", text: `The post returned HTTP 402. Click Approve to send $${paid.charged} USDC on Base Sepolia from the buyer wallet to the seller. The ${paid.tier.label} (${bundle.postCount} posts) is a local snapshot, ready once you approve.`, sources: [] });
       emit({ type: "done", mode, ...stats });
       return;
     }
@@ -282,7 +271,7 @@ async function runScripted({ mode, question, respectRobots, bundleChoice }: RunO
     emit({ type: "answer", text: `Read "${title}". This script just fetches, it does not summarize. Pick ChatGPT or Claude as the brain for a real read-and-answer.`, sources: [{ url: pick, title }] });
   } else if (r && r.status === 402) {
     const page = Number(PRICES.search.perPage).toFixed(2);
-    emit({ type: "payment", price: `$${page} USDC`, network: "Monad" });
+    emit({ type: "payment", price: `$${page} USDC`, network: "Base" });
     emit({ type: "answer", text: "Approve to open it.", sources: [] });
   } else {
     emit({ type: "answer", text: "No posts to read for that question.", sources: [] });
@@ -300,7 +289,7 @@ function toolsFor(mode: string) {
     },
     {
       name: "pay_for_training_bundle",
-      description: "Only use this in Train mode, only after a post you asked for came back as HTTP 402, and only if the operator's respect-robots.txt setting did not already stop you. Prepares the training bundle. It does not send USDC. The person clicks Approve in the demo to send testnet USDC from the buyer wallet to the seller on Monad.",
+      description: "Only use this in Train mode, only after a post you asked for came back as HTTP 402, and only if the operator's respect-robots.txt setting did not already stop you. Prepares the training bundle. It does not send USDC. The person clicks Approve in the demo to send testnet USDC from the buyer wallet to the seller on Base.",
       input_schema: { type: "object", properties: { bundle: { type: "string", enum: ["starter", "full"], description: "starter = up to 10 posts, full = the whole archive" } }, required: ["bundle"] },
     },
     {
@@ -320,8 +309,8 @@ const BRAND_LINE = {
 function systemPrompt({ mode, brand, respectRobots, question }: { mode: string; brand: string; respectRobots: boolean; question: string }) {
   const m = MODES[mode];
   const priceLine = mode === "train"
-    ? `Train pricing, paid in testnet USDC on Monad only after the person clicks Approve: ${PRICES.train.starter.label} $${PRICES.train.starter.usd} (up to ${PRICES.train.starter.postCap} posts), ${PRICES.train.full.label} $${PRICES.train.full.usd} (the whole archive), both valid ${PRICES.train.hours} hours.`
-    : `Search pricing: $${PRICES.search.perPage} ${PRICES.search.unit} per page. On HTTP 402, tell the person to click Approve. That sends the USDC on Monad.`;
+    ? `Train pricing, paid in testnet USDC on Base Sepolia only after the person clicks Approve: ${PRICES.train.starter.label} $${PRICES.train.starter.usd} (up to ${PRICES.train.starter.postCap} posts), ${PRICES.train.full.label} $${PRICES.train.full.usd} (the whole archive), both valid ${PRICES.train.hours} hours.`
+    : `Search pricing: $${PRICES.search.perPage} ${PRICES.search.unit} per page. On HTTP 402, tell the person to click Approve. That sends the USDC on Base.`;
   return `You are MapleLabsBot, running in ${m.label} mode (${m.why}). Your User-Agent token is ${m.token}. ${BRAND_LINE[brand] || ""} You are a test crawler built to demonstrate AgentGate's paywall to someone evaluating it, so behave the way a real, well-behaved crawler would: check robots.txt before you fetch anything else, decide what to do next yourself based on what you actually find, and do not follow a fixed script.
 
 The operator's respect-robots.txt switch is currently ${respectRobots ? "ON, meaning if robots.txt disallows you for post URLs, you must stop and not request any post." : "OFF, meaning you may ignore a Disallow for this test run, but say plainly that you are doing so."}
@@ -330,9 +319,9 @@ ${priceLine}
 
 The person asked: "${question}"
 
-Work the way a careful crawler should: read /robots.txt first. Then use your judgment, read /llms.txt if it seems useful, read /sitemap.xml to find posts, and read whichever post(s) best fit the question (in Train mode, read more broadly, in Search mode, usually one or two is enough). Settlement is always testnet USDC on Monad, from the buyer wallet to the seller, and only after the person clicks Approve. The live blog's 402 body may name another network. Ignore that. Never say the payment is on Base, and never say Search has no wallet.
+Work the way a careful crawler should: read /robots.txt first. Then use your judgment, read /llms.txt if it seems useful, read /sitemap.xml to find posts, and read whichever post(s) best fit the question (in Train mode, read more broadly, in Search mode, usually one or two is enough). Settlement is always testnet USDC on Base Sepolia, from the buyer wallet to the seller, and only after the person clicks Approve. Never say Search has no wallet.
 
-If a post answers with HTTP 402 and robots.txt did not stop you: in Train mode, use pay_for_training_bundle; in Search mode, stop fetching and tell the person to click Approve for the per-page Monad price. Before each tool call, say one short sentence in plain first-person language about what you're about to check and why, as ordinary message text alongside the call, the way you would narrate a thought out loud in a real conversation, not a log line. When you have what you need, or you are stopped, call finish with a short, honest answer, including saying so plainly if you were blocked or paid.`;
+If a post answers with HTTP 402 and robots.txt did not stop you: in Train mode, use pay_for_training_bundle; in Search mode, stop fetching and tell the person to click Approve for the per-page Base price. Before each tool call, say one short sentence in plain first-person language about what you're about to check and why, as ordinary message text alongside the call, the way you would narrate a thought out loud in a real conversation, not a log line. When you have what you need, or you are stopped, call finish with a short, honest answer, including saying so plainly if you were blocked or paid.`;
 }
 
 type RunOpts = { mode: string; brain?: string; question: string; respectRobots: boolean; bundleChoice?: string };
@@ -391,9 +380,9 @@ async function runAgent({ mode, question, respectRobots, bundleChoice }: RunOpts
           } else {
             const r = await step(path, kind, kind === "post" ? "post" : path.replace("/", ""));
             if (r.status === 402) {
-              const price = monadQuote(mode, bundleChoice);
-              emit({ type: "payment", price, network: "Monad" });
-              result = `HTTP 402. Settle on Monad. The person clicks Approve to send ${price} from the buyer wallet to the seller. Do not say Base, and do not say Search has no wallet.`;
+              const price = baseQuote(mode, bundleChoice);
+              emit({ type: "payment", price, network: "Base" });
+              result = `HTTP 402. Settle on Base. The person clicks Approve to send ${price} from the buyer wallet to the seller. Do not say Search has no wallet.`;
             } else {
               result = `HTTP ${r.status}\n${r.body.slice(0, 2500)}`;
             }
@@ -409,7 +398,7 @@ async function runAgent({ mode, question, respectRobots, bundleChoice }: RunOpts
           emit({ type: "paid", tier: paid.tier.label, charged: paid.charged, hours: PRICES.train.hours });
           emit({ type: "bundle", bundle });
           const titles = bundle.posts.map((p) => `- ${p.title}`).join("\n");
-          result = `Quote ready, no USDC sent yet: ${paid.tier.label}, $${paid.charged}, valid ${PRICES.train.hours}h. The person must click Approve, which sends that USDC on Monad testnet from the buyer wallet to the seller. Bundle prepared locally: ${bundle.postCount} posts from a snapshot, not fetched around the paywall. Titles:\n${titles}\n\nSay that payment still needs Approve. You may summarize titles in this list. Do not invent details beyond a title, and do not say the USDC has already moved.`;
+          result = `Quote ready, no USDC sent yet: ${paid.tier.label}, $${paid.charged}, valid ${PRICES.train.hours}h. The person must click Approve, which sends that USDC on Base Sepolia from the buyer wallet to the seller. Bundle prepared locally: ${bundle.postCount} posts from a snapshot, not fetched around the paywall. Titles:\n${titles}\n\nSay that payment still needs Approve. You may summarize titles in this list. Do not invent details beyond a title, and do not say the USDC has already moved.`;
         }
       } else if (call.name === "finish") {
         emit({ type: "answer", text: call.input.answer, sources: (call.input.sources || []).map((url: string) => ({ url, title: url })) });
@@ -480,9 +469,9 @@ async function runOpenAIAgent({ mode, question, respectRobots, bundleChoice }: R
           } else {
             const r = await step(path, kind, kind === "post" ? "post" : path.replace("/", ""));
             if (r.status === 402) {
-              const price = monadQuote(mode, bundleChoice);
-              emit({ type: "payment", price, network: "Monad" });
-              result = `HTTP 402. Settle on Monad. The person clicks Approve to send ${price} from the buyer wallet to the seller. Do not say Base, and do not say Search has no wallet.`;
+              const price = baseQuote(mode, bundleChoice);
+              emit({ type: "payment", price, network: "Base" });
+              result = `HTTP 402. Settle on Base. The person clicks Approve to send ${price} from the buyer wallet to the seller. Do not say Search has no wallet.`;
             } else {
               result = `HTTP ${r.status}\n${r.body.slice(0, 2500)}`;
             }
@@ -498,7 +487,7 @@ async function runOpenAIAgent({ mode, question, respectRobots, bundleChoice }: R
           emit({ type: "paid", tier: paid.tier.label, charged: paid.charged, hours: PRICES.train.hours });
           emit({ type: "bundle", bundle });
           const titles = bundle.posts.map((p) => `- ${p.title}`).join("\n");
-          result = `Quote ready, no USDC sent yet: ${paid.tier.label}, $${paid.charged}, valid ${PRICES.train.hours}h. The person must click Approve, which sends that USDC on Monad testnet from the buyer wallet to the seller. Bundle prepared locally: ${bundle.postCount} posts from a snapshot, not fetched around the paywall. Titles:\n${titles}\n\nSay that payment still needs Approve. You may summarize titles in this list. Do not invent details beyond a title, and do not say the USDC has already moved.`;
+          result = `Quote ready, no USDC sent yet: ${paid.tier.label}, $${paid.charged}, valid ${PRICES.train.hours}h. The person must click Approve, which sends that USDC on Base Sepolia from the buyer wallet to the seller. Bundle prepared locally: ${bundle.postCount} posts from a snapshot, not fetched around the paywall. Titles:\n${titles}\n\nSay that payment still needs Approve. You may summarize titles in this list. Do not invent details beyond a title, and do not say the USDC has already moved.`;
         }
       } else if (call.function.name === "finish") {
         emit({ type: "answer", text: args.answer, sources: ((args.sources as string[]) || []).map((url) => ({ url, title: url })) });
@@ -582,20 +571,20 @@ async function transferUsdc(amount: string) {
     throw err;
   }
   const chain = defineChain({
-    id: 10143,
-    name: "Monad Testnet",
-    nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
-    rpcUrls: { default: { http: [MONAD_RPC] } },
-    blockExplorers: { default: { name: "MonadVision", url: MONAD_EXPLORER } },
-    testnet: true,
+    id: BASE_MAINNET ? 8453 : 84532,
+    name: BASE_NAME,
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: { default: { http: [BASE_RPC] } },
+    blockExplorers: { default: { name: "BaseScan", url: BASE_EXPLORER } },
+    testnet: !BASE_MAINNET,
   });
   const abi = [
     { name: "transfer", type: "function", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] },
     { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
   ];
-  const publicClient = createPublicClient({ chain, transport: http(MONAD_RPC) });
-  const [fromBalance, mon] = await Promise.all([
-    publicClient.readContract({ address: MONAD_USDC, abi, functionName: "balanceOf", args: [account.address] }),
+  const publicClient = createPublicClient({ chain, transport: http(BASE_RPC) });
+  const [fromBalance, eth] = await Promise.all([
+    publicClient.readContract({ address: BASE_USDC, abi, functionName: "balanceOf", args: [account.address] }),
     publicClient.getBalance({ address: account.address }),
   ]);
   if (fromBalance < value) {
@@ -603,17 +592,17 @@ async function transferUsdc(amount: string) {
     (err as Error & { status?: number }).status = 400;
     throw err;
   }
-  if (mon === 0n) {
-    const err = new Error("Buyer wallet has 0 MON, so it cannot pay gas.");
+  if (eth === 0n) {
+    const err = new Error("Buyer wallet has 0 ETH, so it cannot pay gas.");
     (err as Error & { status?: number }).status = 400;
     throw err;
   }
-  const walletClient = createWalletClient({ account, chain, transport: http(MONAD_RPC) });
+  const walletClient = createWalletClient({ account, chain, transport: http(BASE_RPC) });
   const gas = await publicClient.estimateContractGas({
-    address: MONAD_USDC, abi, functionName: "transfer", args: [SELLER_ADDRESS, value], account,
+    address: BASE_USDC, abi, functionName: "transfer", args: [SELLER_ADDRESS, value], account,
   });
   const hash = await walletClient.writeContract({
-    address: MONAD_USDC, abi, functionName: "transfer", args: [SELLER_ADDRESS, value], gas: (gas * 120n) / 100n,
+    address: BASE_USDC, abi, functionName: "transfer", args: [SELLER_ADDRESS, value], gas: (gas * 120n) / 100n,
   });
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") {
@@ -621,7 +610,7 @@ async function transferUsdc(amount: string) {
     (err as Error & { status?: number }).status = 502;
     throw err;
   }
-  return { from: account.address, to: SELLER_ADDRESS, amount: formatUnits(value, 6), txHash: hash, explorer: `${MONAD_EXPLORER}/tx/${hash}` };
+  return { from: account.address, to: SELLER_ADDRESS, amount: formatUnits(value, 6), txHash: hash, explorer: `${BASE_EXPLORER}/tx/${hash}` };
 }
 
 const settlements: { at: string; amount: string; path: string; txHash: string; explorer: string; from: string; to: string }[] = [];
@@ -655,7 +644,7 @@ export default async (req: Request) => {
     };
     return json({
       site: SITE, modes: MODES, prices: PRICES, canControl: Boolean(ADMIN_KEY), requiresPolicyKey: Boolean(DEMO_POLICY_KEY), brains,
-      wallets: { buyer: BUYER_ADDRESS || null, seller: SELLER_ADDRESS, chain: "Monad Testnet", explorer: MONAD_EXPLORER },
+      wallets: { buyer: BUYER_ADDRESS || null, seller: SELLER_ADDRESS, chain: "Base Sepolia", explorer: BASE_EXPLORER },
       canPay: Boolean(BUYER_KEY),
     });
   }
@@ -663,14 +652,14 @@ export default async (req: Request) => {
   if (pathname === "/api/post" && req.method === "GET") {
     const want = url.searchParams.get("path") || "";
     const paid = settlements.some((row) => row.path && (row.path === want || want.endsWith(row.path) || row.path.endsWith(want)));
-    if (!paid) return json({ found: false, error: "Approve the Monad payment first." }, 402);
+    if (!paid) return json({ found: false, error: "Approve the Base payment first." }, 402);
     const post = (SNAPSHOT.posts || []).find((item: { url: string }) => item.url === want || want.endsWith(item.url));
     if (!post) return json({ found: false }, 404);
     return json({ found: true, title: post.title, url: post.url, excerpts: post.excerpts });
   }
 
   if (pathname === "/api/prices" && req.method === "GET") {
-    return json({ prices: PRICES, chain: "Monad Testnet" });
+    return json({ prices: PRICES, chain: "Base Sepolia" });
   }
   if (pathname === "/api/settlements" && req.method === "GET") {
     return json({ settlements });
