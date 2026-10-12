@@ -1,5 +1,5 @@
 import { createPublicClient, http } from "viem";
-import { MONAD_TESTNET_REPUTATION_REGISTRY, monadTestnet } from "../chain/monad";
+import { REPUTATION_REGISTRY, activeChain } from "../chain/base";
 
 const reputationRegistryAbi = [
   {
@@ -64,8 +64,8 @@ export type AgentReputation = {
 
 function client() {
   return createPublicClient({
-    chain: monadTestnet,
-    transport: http(monadTestnet.rpcUrls.default.http[0]),
+    chain: activeChain,
+    transport: http(activeChain.rpcUrls.default.http[0]),
   });
 }
 
@@ -97,7 +97,7 @@ export async function fetchScanFeedback(agentId: number): Promise<ScanNote[]> {
 export async function readAgentReputation(agentId: number): Promise<AgentReputation> {
   const chain = client();
   const clients = await chain.readContract({
-    address: MONAD_TESTNET_REPUTATION_REGISTRY,
+    address: REPUTATION_REGISTRY,
     abi: reputationRegistryAbi,
     functionName: "getClients",
     args: [BigInt(agentId)],
@@ -105,14 +105,14 @@ export async function readAgentReputation(agentId: number): Promise<AgentReputat
   if (clients.length === 0) return { count: 0, average: null, entries: [] };
 
   const [count, summaryValue, summaryDecimals] = await chain.readContract({
-    address: MONAD_TESTNET_REPUTATION_REGISTRY,
+    address: REPUTATION_REGISTRY,
     abi: reputationRegistryAbi,
     functionName: "getSummary",
     args: [BigInt(agentId), [...clients], "", ""],
   });
 
   const feedback = await chain.readContract({
-    address: MONAD_TESTNET_REPUTATION_REGISTRY,
+    address: REPUTATION_REGISTRY,
     abi: reputationRegistryAbi,
     functionName: "readAllFeedback",
     args: [BigInt(agentId), [...clients], "", "", true],
