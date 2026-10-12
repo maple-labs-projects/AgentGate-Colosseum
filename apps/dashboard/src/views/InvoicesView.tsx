@@ -45,8 +45,14 @@ function InvoicePaper({ invoice }: { invoice: CompanyInvoice }) {
         <div>
           <span>From</span>
           <strong>{ISSUER.name}</strong>
-          <p>ERC-8004 #{ISSUER.agentId} on Monad testnet</p>
-          <p><a href={ISSUER.verifyUrl}>Verified on 8004scan</a></p>
+          {ISSUER.agentId === null ? (
+            <p>ERC-8004 agent: not registered yet</p>
+          ) : (
+            <>
+              <p>ERC-8004 #{ISSUER.agentId} on {ISSUER.chainName}</p>
+              <p><a href={ISSUER.verifyUrl}>Verified on 8004scan</a></p>
+            </>
+          )}
           <p className="mono">{ISSUER.wallet}</p>
           <p>For {ISSUER.site}</p>
         </div>
@@ -178,7 +184,7 @@ export function InvoicesView() {
         <div>
           <h1>Invoices</h1>
           <p className="obs-meta">
-            Bills from {ISSUER.name} #{ISSUER.agentId} to companies whose agents are disallowed in robots.txt.
+            Bills from {ISSUER.name}{ISSUER.agentId === null ? "" : ` #${ISSUER.agentId}`} to companies whose agents are disallowed in robots.txt.
             HTTP 200 means the page was delivered and the invoice is pending.
             HTTP 402 means the paywall stopped the fetch, so it is not charged.
             {allowed.length > 0 ? ` Allowed, and not invoiced: ${allowed.join(", ")}.` : ""}
