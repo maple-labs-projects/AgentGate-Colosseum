@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { defaultRules } from "./data";
 import { RECEIVE_ADDRESS } from "./modules/chain/base";
-import { blogIsVerified, fetchBlogAnalytics, fetchBlogRules, markBlogVerified, updateBlogRules } from "./modules/services/blogAnalytics";
+import { fetchBlogAnalytics, fetchBlogRules, markBlogVerified, updateBlogRules } from "./modules/services/blogAnalytics";
 import { readChainAccount } from "./modules/wallet/account";
 import { hideService, loadServices, nextServiceId, parseOrigin, saveUserServices } from "./modules/services/catalog";
 import type { AgentView, Range, Rule, RuleMode, Service, ServiceView, Summary, Tab } from "./types";
@@ -12,6 +12,7 @@ import { ServicesView } from "./views/ServicesView";
 import { WalletView } from "./views/WalletView";
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: "observability", label: "Observability" },
   { id: "services", label: "Services" },
   { id: "wallet", label: "Wallet" },
   { id: "identity", label: "Identity" },
@@ -35,14 +36,15 @@ function initialRules(services: Service[]): Record<string, Rule[]> {
 }
 
 export function App() {
-  const [tab, setTab] = useState<Tab>("services");
+  // The observability deck is the landing page.
+  const [tab, setTab] = useState<Tab>("observability");
   const [services, setServices] = useState<Service[]>(() => loadServices());
-  const [blogVerified, setBlogVerified] = useState(blogIsVerified);
+  // The blog is this dashboard's own site, so its deck opens without a separate verify step.
+  const [blogVerified, setBlogVerified] = useState(true);
   const [liveSummary, setLiveSummary] = useState<Summary | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveError, setLiveError] = useState("");
   const [serviceId, setServiceId] = useState("blog");
-  const [deckOpen, setDeckOpen] = useState(false);
   const [view, setView] = useState<ServiceView>("graphs");
   const [agentView, setAgentView] = useState<AgentView>("all");
   const [range, setRange] = useState<Range>("week");
@@ -130,7 +132,7 @@ export function App() {
     saveUserServices(next);
     if (serviceId === id) {
       setServiceId(next[0]?.id ?? "");
-      setDeckOpen(false);
+      setTab("services");
     }
   }
 
@@ -217,19 +219,11 @@ export function App() {
           <a href="https://santboblabs.com">Santbob Labs</a>
         </nav>
       </header>
-      {tab === "services" && !deckOpen && (
-        <ServiceBoard
-          services={listed}
-          onOpenDeck={(id) => { setServiceId(id); setView("graphs"); setDeckOpen(true); }}
-          onAdd={addService}
-          onRemove={removeService}
-        />
-      )}
-      {tab === "services" && deckOpen && (
+      {tab === "observability" && (
         <ServicesView
           services={listed}
           serviceId={serviceId}
-          onBack={() => setDeckOpen(false)}
+          onBack={() => setTab("services")}
           view={view}
           onView={setView}
           agentView={agentView}
@@ -243,6 +237,14 @@ export function App() {
           liveLoading={liveLoading}
           liveError={liveError}
           onVerify={verifyBlog}
+        />
+      )}
+      {tab === "services" && (
+        <ServiceBoard
+          services={listed}
+          onOpenDeck={(id) => { setServiceId(id); setView("graphs"); setTab("observability"); }}
+          onAdd={addService}
+          onRemove={removeService}
         />
       )}
       {tab === "wallet" && <WalletView />}
