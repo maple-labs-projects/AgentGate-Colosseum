@@ -1,4 +1,4 @@
-# AgentGate (Colosseum edition)
+# AgentGate
 
 AgentGate lets a site owner charge AI agents for reading their content, instead of hoping they honor `robots.txt`.
 An unpaid agent gets an HTTP 402 with a price. A paying agent gets the page and a receipt. The owner sees who read
