@@ -60,19 +60,3 @@ The buyer key never leaves the server and is only used after Approve. See `apps/
 3. The gate accepts the paid request and the dashboard records it with a link to BaseScan.
 4. Agent identity uses the ERC-8004 identity registry on Base.
 
-## Pre-existing work
-
-This repository is a fork of [dhru7777/AgentGate](https://github.com/dhru7777/AgentGate), which was built for a
-different hackathon. The full history is kept. The first commit is dated 2026-10-01, before this event.
-
-Changes made for this event:
-
-- Settlement and identity moved to Base. Balance and transfer history now read from Base RPC and Blockscout.
-- The bot pays USDC on Base and its prompts and UI were updated to match.
-- The earlier passkey sign-in and the other chain and wallet integrations were removed. The wallet view now shows the configured receive address.
-- The ERC-8004 invoice agent id is now configuration, so the UI never shows another wallet's agent as yours.
-
-## AI tool disclosure
-
-Built with Claude Code (Anthropic) for drafting and refactoring, reviewed by the team. MapleLabsBot can use Claude or
-OpenAI as its brain; payment in the demo is a real testnet transfer only after a person clicks Approve.
