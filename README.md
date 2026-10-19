@@ -77,20 +77,6 @@ sequenceDiagram
 In this edition the training bundle is built from a local snapshot (`apps/maplelabs-bot/data/snapshot.json`), so paying
 shows the full settlement without unlocking the live blog.
 
-### Dashboard data flow
-
-```mermaid
-flowchart TD
-  Browser[Dashboard in the browser] -->|read-only analytics key| Blog[Blog analytics endpoint]
-  Browser -->|/api/base-account| Fn[Netlify function]
-  Fn -->|eth_getBalance, USDC balanceOf| RPC[Base RPC]
-  Fn -->|recent USDC transfers| Scan[Blockscout API]
-  Browser -->|register agent, read reputation| Reg[ERC-8004 identity and reputation registries]
-  Browser -->|/api/erc8004-feedback| FB[Netlify function]
-  FB --> S8004[8004scan feedback API]
-  Browser --> Inv[Invoice builder and PDF]
-```
-
 ### Gate decisions
 
 | Client | Policy | Result |
