@@ -6,6 +6,7 @@ import { readChainAccount } from "./modules/wallet/account";
 import { hideService, loadServices, nextServiceId, parseOrigin, saveUserServices } from "./modules/services/catalog";
 import type { Rule, RuleMode, Service, Summary, Tab } from "./types";
 import { buildPath, parseRoute, titleFor, type Route } from "./routes";
+import { Walkthrough, WalkthroughButton, resumeIndex } from "./components/Walkthrough";
 import { ServiceBoard } from "./screens/ServiceBoard";
 import { IdentityView } from "./views/IdentityView";
 import { InvoicesView } from "./views/InvoicesView";
@@ -69,6 +70,11 @@ export function App() {
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveError, setLiveError] = useState("");
   const [rulesByService, setRulesByService] = useState<Record<string, Rule[]>>(() => initialRules(loadServices()));
+  // Guided tour for judges: null when closed, otherwise the step number.
+  // Coming back from the Crawl Sandbox tour lands on /identity?walk=identity and picks up at the Identity step.
+  const [walk, setWalk] = useState<number | null>(() => {
+    return resumeIndex(new URLSearchParams(window.location.search).get("walk"));
+  });
 
   useEffect(() => {
     localStorage.setItem("agentledger.rules", JSON.stringify(rulesByService));
@@ -267,6 +273,8 @@ export function App() {
       {tab === "wallet" && <WalletView />}
       {tab === "identity" && <IdentityView services={services} />}
       {tab === "invoices" && <InvoicesView />}
+      <WalkthroughButton running={walk !== null} onClick={() => setWalk(0)} />
+      <Walkthrough index={walk} go={go} onIndex={setWalk} />
     </>
   );
 }
