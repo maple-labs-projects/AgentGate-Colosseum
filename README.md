@@ -9,6 +9,7 @@ from the ERC-8004 identity registry on Base.
 
 - Dashboard: https://monetize-your-data-from-agents-colosseum.netlify.app
 - Crawl Sandbox (demo bot): https://agent-preview-colosseum.netlify.app
+- Presentation: https://canva.link/4e2rilahpylp79n
 - Gated demo blog: https://dheeraj-work.netlify.app ([`robots.txt`](https://dheeraj-work.netlify.app/robots.txt), [`llms.txt`](https://dheeraj-work.netlify.app/llms.txt))
 
 This is the Base port of [dhru7777/AgentGate](https://github.com/dhru7777/AgentGate), which settles on Monad testnet.
