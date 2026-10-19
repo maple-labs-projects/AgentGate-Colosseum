@@ -12,8 +12,6 @@ from the ERC-8004 identity registry on Base.
 - Presentation: https://canva.link/4e2rilahpylp79n
 - Gated demo blog: https://dheeraj-work.netlify.app ([`robots.txt`](https://dheeraj-work.netlify.app/robots.txt), [`llms.txt`](https://dheeraj-work.netlify.app/llms.txt))
 
-This is the Base port of [dhru7777/AgentGate](https://github.com/dhru7777/AgentGate), which settles on Monad testnet.
-
 ## The problem
 
 AI agents now read the open web at scale. A site owner has two options today, and both are bad:
@@ -164,7 +162,7 @@ See `apps/maplelabs-bot/README.md` for modes, brains and the payment caps.
 ## Pre-existing work
 
 - The Netlify blog gate (a proof-of-work check for people, HTTP 402 for agents) at `dheeraj-work.netlify.app` existed before this edition.
-- This repository is the Base port of [dhru7777/AgentGate](https://github.com/dhru7777/AgentGate). The dashboard and MapleLabsBot started from that code. Chain, wallet, ERC-8004 and settlement code was moved from Monad to Base. Monad-specific pieces (the Mera passkey wallet) are not part of this edition.
+- The dashboard, ERC-8004 integration, Base settlement and MapleLabsBot were built for this project.
 - The first commit in this repository is dated 2026-10-01.
 
 ## AI tool disclosure

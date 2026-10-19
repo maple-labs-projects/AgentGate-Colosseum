@@ -90,7 +90,7 @@ async function copyText(text) {
 }
 
 // Each wallet is a labeled balance chip that opens a popover on click, closes on an outside click
-// or a second click on the same button, same interaction as midnightx402's ui-demo.
+// or a second click on the same button.
 function wirePopover(wrapId, btnId) {
   const wrap = $(`#${wrapId}`), btn = $(`#${btnId}`);
   btn.addEventListener("click", (e) => {

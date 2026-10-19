@@ -57,9 +57,9 @@ async function send(
 }
 
 /**
- * Browser port of midnightx402 `registerAgentOnChain`.
+ * Registers an agent on the ERC-8004 identity registry from the browser.
  * register(agentURI) → read Registered → setAgentURI with the id filled in.
- * The connected wallet signs. It needs testnet MON for gas.
+ * The connected wallet signs. It needs testnet ETH for gas.
  */
 export async function registerAgentOnChain(input: {
   name: string;

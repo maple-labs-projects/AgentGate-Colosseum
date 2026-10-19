@@ -131,7 +131,7 @@ const MODES = {
 
 function ua(mode: string, brand: string, model: string | null) {
   const tag = brand === "openai" ? `brain=openai:${model}` : brand === "anthropic" ? `brain=anthropic:${model}` : "brain=script";
-  return `Mozilla/5.0 (compatible; ${MODES[mode].token}/1.0; ${tag}) +https://github.com/dhru7777/AgentGate`;
+  return `Mozilla/5.0 (compatible; ${MODES[mode].token}/1.0; ${tag}) +https://github.com/maple-labs-projects/AgentGate-Colosseum`;
 }
 
 function modelFromUa(uaString: string) {
@@ -555,7 +555,7 @@ async function siteRead(path: string, ttlMs = 60_000) {
 const modeOf = (r: { allowed: boolean; charge?: boolean }) => (r.allowed ? "free" : r.charge ? "charge" : "block");
 
 async function waitUntilLive(mode: string) {
-  const probe = { headers: { "User-Agent": "Mozilla/5.0 (compatible; MapleLabsBot-Verify/1.0; +https://github.com/dhru7777/AgentGate)" } };
+  const probe = { headers: { "User-Agent": "Mozilla/5.0 (compatible; MapleLabsBot-Verify/1.0; +https://github.com/maple-labs-projects/AgentGate-Colosseum)" } };
   const started = Date.now();
   while (Date.now() - started < 25_000) {
     try {

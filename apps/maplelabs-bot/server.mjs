@@ -206,7 +206,7 @@ const MODES = {
 // demo's own /api/log, can show which model actually drove a given request.
 function ua(mode, brand, model) {
   const tag = brand === "openai" ? `brain=openai:${model}` : brand === "anthropic" ? `brain=anthropic:${model}` : "brain=script";
-  return `Mozilla/5.0 (compatible; ${MODES[mode].token}/1.0; ${tag}) +https://github.com/dhru7777/AgentGate`;
+  return `Mozilla/5.0 (compatible; ${MODES[mode].token}/1.0; ${tag}) +https://github.com/maple-labs-projects/AgentGate-Colosseum`;
 }
 
 // The reverse of the tag above, read back out of a logged User-Agent string for the gate log table.
@@ -669,7 +669,7 @@ async function siteRead(path, ttlMs = 60_000) {
 const modeOf = (r) => (r.allowed ? "free" : r.charge ? "charge" : "block");
 
 async function waitUntilLive(mode) {
-  const probe = { headers: { "User-Agent": "Mozilla/5.0 (compatible; MapleLabsBot-Verify/1.0; +https://github.com/dhru7777/AgentGate)" } };
+  const probe = { headers: { "User-Agent": "Mozilla/5.0 (compatible; MapleLabsBot-Verify/1.0; +https://github.com/maple-labs-projects/AgentGate-Colosseum)" } };
   const started = Date.now();
   while (Date.now() - started < 70_000) {
     try {
